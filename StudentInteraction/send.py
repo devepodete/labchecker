@@ -12,7 +12,7 @@ def main():
         exit(1)
 
     destination = sys.argv[1]
-    attachments = sys.argv[2:] if len(sys.argv) > 2 else []
+    attachments = sys.argv[2:]
 
     subject = 'Test subject'
     body = 'This is an automatic reply. Thank you for participating!'

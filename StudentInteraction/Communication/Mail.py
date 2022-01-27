@@ -69,6 +69,18 @@ class MailMessage:
 
         raise RuntimeError(f'Unexpected argument type in attach_file(): {type(args[0])}')
 
+    def __str__(self):
+        s = f"""\
+From: `{self.From}\', To: `{self.To}\', Subject: `{self.Subject}\'
+Body: `{self.Body}\'
+Attachments:"""
+
+        for idx, attachment in enumerate(self.Attachments):
+            s += f'{idx + 1}) `{attachment.name}\' with length {len(attachment.data)} bytes\n'
+
+        s += f'(Total {len(self.Attachments)})\n'
+        return s
+
 
 class MailSender:
     def __init__(self, login: str, password: str, smtp_server='smtp.gmail.com', port=465):
@@ -158,7 +170,6 @@ class MailReceiver:
     def fetch(self) -> List[MailMessage]:
         result = []
         emails, total_bytes = self.server.stat()
-
         for i in range(emails):
             response = self.server.retr(i + 1)
             raw_message = response[1]
