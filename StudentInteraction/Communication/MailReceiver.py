@@ -1,4 +1,4 @@
-from .MailMessage import MailMessage, MailAttachedFile
+from .MailMessage import MailMessage, MailAttachment
 
 import re
 import poplib
@@ -86,7 +86,7 @@ class MailReceiver:
                 if part.get_content_disposition() is None:
                     continue
 
-                message.attach_file(MailAttachedFile(self.__parse_file_name(part), part.get_payload()))
+                message.attach_file(MailAttachment(self.__parse_file_name(part), part.get_payload()))
 
             result.append(message)
 

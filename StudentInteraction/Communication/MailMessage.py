@@ -5,12 +5,21 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 
-class MailAttachedFile:
-    def __init__(self, name: str, data):
+class AttachmentKind:
+    Binary = 0,
+    Html = 1,
+    Text = 2
+
+
+class MailAttachment:
+    def __init__(self, name: str, data, kind=AttachmentKind.Binary):
         self.name = name
         self.data = data
+        self.kind = kind
 
-    def save_to(self, path, mode='wb'):
+    def save_to(self, path):
+        mode = 'w'
+        mode += 'b' if self.kind == AttachmentKind.Binary else ''
         with open(os.path.join(path, self.name), mode) as f:
             f.write(self.data)
 
@@ -36,22 +45,24 @@ class MailMessage:
             self.message.attach(MIMEText(self.Body, 'plain'))
 
         for attachment in self.Attachments:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(attachment.data)
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(attachment.name)}')
+            if attachment.kind == AttachmentKind.Binary:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(attachment.data)
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(attachment.name)}')
+            elif attachment.kind == AttachmentKind.Html:
+                part = MIMEText(attachment.data, 'html')
+            else:
+                part = MIMEText(attachment.data, 'plain')
 
             self.message.attach(part)
 
-    def __attach_base(self, file_name: str, file_data):
-        self.Attachments.append(MailAttachedFile(file_name, file_data))
+    def __attach_from_mail_file(self, mail_file: MailAttachment):
+        self.Attachments.append(mail_file)
 
     def __attach_from_disk(self, filepath: str):
         with open(filepath, 'rb') as attachment:
-            self.__attach_base(filepath, attachment.read())
-
-    def __attach_from_mail_file(self, mail_file: MailAttachedFile):
-        self.__attach_base(mail_file.name, mail_file.data)
+            self.__attach_from_mail_file(MailAttachment(filepath, attachment.read()))
 
     def attach_file(self, *args):
         if len(args) != 1:
@@ -59,7 +70,7 @@ class MailMessage:
 
         if type(args[0]) is str:
             return self.__attach_from_disk(args[0])
-        if type(args[0]) is MailAttachedFile:
+        if type(args[0]) is MailAttachment:
             return self.__attach_from_mail_file(args[0])
 
         raise RuntimeError(f'Unexpected argument type in attach_file(): {type(args[0])}')
