@@ -1,5 +1,5 @@
 from Communication.authentication import get_credentials
-from Communication.Mail import MailReceiver
+from Communication.MailReceiver import MailReceiver
 
 CREDENTIALS_FILE = '.admin_credentials'
 

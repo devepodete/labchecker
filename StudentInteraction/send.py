@@ -1,7 +1,8 @@
-import sys
-
 from Communication.authentication import get_credentials
-from Communication.Mail import MailMessage, MailSender
+from Communication.MailMessage import MailMessage
+from Communication.MailSender import MailSender
+
+import sys
 
 CREDENTIALS_FILE = '.admin_credentials'
 
