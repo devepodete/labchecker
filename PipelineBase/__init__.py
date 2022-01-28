@@ -1,4 +1,4 @@
-from .ExecutionPolicy import ExecutionPolicy
+from .GateExecutionPolicy import ExecutionPolicy
 from .Gate import Gate
 from .GateHolder import GateHolder
 from .Verdict import Verdict
