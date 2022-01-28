@@ -7,13 +7,12 @@ from abc import ABCMeta, abstractmethod
 class IPipelineElement:
     __metaclass__ = ABCMeta
 
-    def __init__(self, name='IPipelineElement', verdict=Verdict.NR):
-        self.executionResult = ExecutionResult(name, verdict)
+    def __init__(self, name: str):
+        self.executionResult = ExecutionResult(name, Verdict.NR)
 
     @abstractmethod
-    def execute(self, ancestor_execution_result: ExecutionResult) -> None:
+    def execute(self) -> None:
         raise NotImplementedError
 
-    @abstractmethod
     def get_result(self) -> ExecutionResult:
         return self.executionResult

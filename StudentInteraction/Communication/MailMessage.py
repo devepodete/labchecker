@@ -6,8 +6,8 @@ from email import encoders
 
 
 class AttachmentKind:
-    Binary = 0,
-    Html = 1,
+    Binary = 0
+    Html = 1
     Text = 2
 
 
