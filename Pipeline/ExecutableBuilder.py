@@ -19,7 +19,10 @@ class ExecutableBuilder(IPipelineElement):
 
         if res.returncode != 0:
             if res.stderr:
-                self.executionResult.message = res.stderr.decode('utf-8')
+                try:
+                    self.executionResult.message = res.stderr.decode('utf-8')
+                finally:
+                    pass
             self.executionResult.verdict = Verdict.FAIL
         else:
             self.executionResult.verdict = Verdict.OK
