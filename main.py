@@ -3,7 +3,7 @@ from StudentInteraction.Communication import MailMessage, MailAttachment, Attach
     authentication
 from StudentInteraction.ReportGeneration import ReportGenerator, ReportType
 
-from Pipeline import ExecutableBuilder
+from Pipeline import ExecutableBuilder, FileSizeLimiter, FileCleaner
 
 
 class A(IPipelineElement):
@@ -49,11 +49,16 @@ def main():
                 print(f'{idx}. {str(msg)}')
                 if len(msg.Attachments) != 0:
                     msg.Attachments[0].save_to('TestingArea/main.c')
+                    gate0 = Gate('PreparationChecks',
+                                 [FileSizeLimiter('TestingArea/main.c', 10000)], ExecutionPolicy.RUN_ALWAYS)
                     gate1 = Gate('Build',
                                  [ExecutableBuilder('gcc', ['-Wall', '-Werror'], 'TestingArea/main.c',
                                                     'TestingArea/main.out')],
-                                 ExecutionPolicy.RUN_ALWAYS)
-                    gh = GateHolder([gate1])
+                                 ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED)
+                    gate2 = Gate('Clean',
+                                 [FileCleaner(['TestingArea/main.out'])], ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED)
+
+                    gh = GateHolder([gate0, gate1, gate2])
                     gh.execute()
 
                     rg = ReportGenerator(gh.gates)
