@@ -1,9 +1,9 @@
 from .MailMessage import MailMessage, MailAttachment
 
-import re
-import poplib
 import email
 import email.header
+import poplib
+import re
 from typing import List, Optional
 
 MAIL_REGEX = r'^(?:.*?)([\w\.]+\@[\w]+\.[\w]+)(?:.*?)$'
@@ -79,9 +79,6 @@ class MailReceiver:
                 content_maintype = part.get_content_maintype()
                 if content_maintype == 'multipart':
                     continue
-
-                if content_maintype == 'text':
-                    message.Body += part.get_payload()
 
                 if part.get_content_disposition() is None:
                     continue
