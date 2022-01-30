@@ -70,10 +70,11 @@ class MailReceiver:
             response = self.server.retr(i + 1)
             raw_message = response[1]
             str_message = email.message_from_bytes(b'\n'.join(raw_message))
-
             subject = self.__parse_subject(str_message)
             sender_email = self.__parse_sender(str_message)
-            message = MailMessage(sender_email, self.login, subject)
+            body = ''
+            date = str_message['Date']
+            message = MailMessage(sender_email, self.login, subject, body, date)
 
             for part in str_message.walk():
                 content_maintype = part.get_content_maintype()

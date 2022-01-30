@@ -1,8 +1,9 @@
-import os
+from base64 import b64decode
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+import os
 
 
 class AttachmentKind:
@@ -20,18 +21,23 @@ class MailAttachment:
     def save_to(self, path):
         mode = 'w'
         mode += 'b' if self.kind == AttachmentKind.Binary else ''
-        with open(os.path.join(path, self.name), mode) as f:
-            f.write(self.data)
+        with open(path, mode) as f:
+            data = self.data
+            if self.kind == AttachmentKind.Binary:
+                data = b64decode(self.data)
+            f.write(data)
 
 
 class MailMessage:
-    def __init__(self, sender: str, receiver: str, subject: str, body=''):
+    def __init__(self, sender: str, receiver: str, subject: str, body='', date=''):
         self.message = MIMEMultipart()
 
         self.From = sender
         self.To = receiver
         self.Subject = subject
         self.Body = body
+        self.Date = date
+
         self.Attachments = []
 
     def pack(self):
@@ -78,8 +84,9 @@ class MailMessage:
     def __str__(self):
         s = f"""\
 From: `{self.From}\', To: `{self.To}\', Subject: `{self.Subject}\'
-Body: `{self.Body}\'
-Attachments:"""
+Body: `{self.Body}\', Date: `{self.Date}\'
+Attachments:
+"""
 
         for idx, attachment in enumerate(self.Attachments):
             s += f'{idx + 1}) `{attachment.name}\' with length {len(attachment.data)} bytes\n'
