@@ -14,5 +14,7 @@ class GateHolder:
         for gate in self.gates:
             if prev_gate_result != Verdict.OK and gate.executionPolicy == ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED:
                 continue
+            if prev_gate_result == Verdict.OK and gate.executionPolicy == ExecutionPolicy.RUN_IF_PREVIOUS_FAILED:
+                continue
             gate.execute()
             prev_gate_result = gate.get_result().verdict
