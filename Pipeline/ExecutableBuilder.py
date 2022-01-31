@@ -21,7 +21,7 @@ class ExecutableBuilder(IPipelineElement):
             if res.stderr:
                 try:
                     self.executionResult.message = res.stderr.decode('utf-8')
-                finally:
+                except UnicodeDecodeError:
                     pass
             self.executionResult.verdict = Verdict.FAIL
         else:
