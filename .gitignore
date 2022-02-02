@@ -1,3 +1,9 @@
+# Some folders
+Submits/
+
+# Executables
+*.out
+
 # Some dot files
 .*
 
