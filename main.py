@@ -9,19 +9,53 @@ from Utils import AnswerComparator
 
 import os.path
 import dateutil.parser
+import json
 
-TEST_FOLDER = 'TestingArea'
-SUBMITS_FOLDER = os.path.join(TEST_FOLDER, 'Submits')
-LABS_FOLDER = os.path.join(TEST_FOLDER, 'Labs')
+CONFIG_FILE_PATH = 'config.json'
+PATHS_GENERATED_PATH = 'CheckerData/paths_generated.json'
+
+PUBLIC_KEYS_FOLDER = None
+ADMIN_CREDS_FILE = None
+TEST_FOLDER = None
+SUBMITS_FOLDER = None
+LABS_FOLDER = None
+
+REMOVE_EXECUTABLE_AFTER_RUN = None
+RETURN_STDERR_TO_STUDENT = None
+RETURN_STDERR_TO_STUDENT_SIZE = None
+
+
+def init_generated_paths():
+    global PUBLIC_KEYS_FOLDER, ADMIN_CREDS_FILE, TEST_FOLDER, SUBMITS_FOLDER, LABS_FOLDER
+
+    with open(PATHS_GENERATED_PATH, 'r') as config:
+        cfg = json.load(config)
+
+        PUBLIC_KEYS_FOLDER = cfg['public_keys']
+        ADMIN_CREDS_FILE = cfg['admin_credentials']
+        TEST_FOLDER = cfg['testing_area']
+        SUBMITS_FOLDER = cfg['submits']
+        LABS_FOLDER = cfg['labs']
+
+
+def init_flags():
+    global REMOVE_EXECUTABLE_AFTER_RUN, RETURN_STDERR_TO_STUDENT, RETURN_STDERR_TO_STUDENT_SIZE
+
+    with open(CONFIG_FILE_PATH, 'r') as config:
+        cfg = json.load(config)
+
+        REMOVE_EXECUTABLE_AFTER_RUN = cfg['Flags']['remove_executable_after_run']['value']
+        RETURN_STDERR_TO_STUDENT = cfg['Flags']['return_stderr_to_student']['value']
+        RETURN_STDERR_TO_STUDENT_SIZE = cfg['Flags']['return_stderr_to_student']['size']['value']
 
 
 def good_subject(subject: str):
-    return len(subject) == 4 and subject.startswith('os:') and subject[-1] in ('1', '2', '3', '4', '5')
+    return subject in ('os:1', 'os:2', 'os:3', 'os:4')
 
 
-def main():
+def work():
     from time import sleep
-    login, password = authentication.get_credentials('StudentInteraction/.admin_credentials')
+    login, password = authentication.get_credentials('CheckerData/.admin_credentials')
     done = False
 
     while not done:
@@ -103,6 +137,12 @@ def main():
                 assert msg.From != msg.To
                 sendServer.send_message(msg)
             print('Done')
+
+
+def main():
+    init_generated_paths()
+    init_flags()
+    work()
 
 
 if __name__ == '__main__':
