@@ -1,5 +1,8 @@
-# Some folders
+# Checker folders
 Submits/
+CheckerData/
+PublicKeys/
+TestingArea/
 
 # Executables
 *.out
