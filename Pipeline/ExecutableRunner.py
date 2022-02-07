@@ -20,7 +20,7 @@ class ExecutableRunner(IPipelineElement):
     def execute(self) -> None:
         if not os.path.exists(self.testsPath) or not os.path.exists(self.limitsFile):
             self.executionResult.verdict = Verdict.FAIL
-            self.executionResult.message = f'Can not file tests info in {self.labVariantPath}'
+            self.executionResult.message = f'Can not find tests info in {self.labVariantPath}'
             return
 
         test_idx = 1
