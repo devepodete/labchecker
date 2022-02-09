@@ -89,3 +89,10 @@ class MailReceiver:
             result.append(message)
 
         return result
+
+    def skip_pending(self) -> int:
+        emails, total_bytes = self.server.stat()
+        for i in range(emails):
+            self.server.retr(i + 1)
+
+        return emails
