@@ -1,5 +1,6 @@
 from PipelineBase import Gate, Verdict
 
+from pathlib import Path
 from typing import List
 
 REPORT_BG_COLOR = '#c9a0dc'
@@ -34,7 +35,7 @@ class ReportGenerator:
         else:
             raise NotImplementedError
 
-    def save_to(self, path: str) -> None:
+    def save_to(self, path: Path) -> None:
         with open(path, 'w') as f:
             f.write(self.report)
 

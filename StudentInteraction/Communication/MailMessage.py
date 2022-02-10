@@ -4,6 +4,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import os
+from pathlib import Path
+from typing import List
 
 
 class AttachmentKind:
@@ -18,7 +20,7 @@ class MailAttachment:
         self.data = data
         self.kind = kind
 
-    def save_to(self, path):
+    def save_to(self, path: Path):
         mode = 'w'
         mode += 'b' if self.kind == AttachmentKind.Binary else ''
         with open(path, mode) as f:
@@ -38,14 +40,12 @@ class MailMessage:
         self.Body = body
         self.Date = date
 
-        self.Attachments = []
+        self.Attachments = []  # FIXME add strong type
 
     def pack(self):
         self.message['From'] = self.From
         self.message['To'] = self.To
         self.message['Subject'] = self.Subject
-        # do I really need it?
-        # self.message['Bcc'] = self.message['To']
 
         if self.Body and len(self.Body) != 0:
             self.message.attach(MIMEText(self.Body, 'plain'))
@@ -66,9 +66,9 @@ class MailMessage:
     def __attach_from_mail_file(self, mail_file: MailAttachment):
         self.Attachments.append(mail_file)
 
-    def __attach_from_disk(self, filepath: str):
+    def __attach_from_disk(self, filepath: Path):
         with open(filepath, 'rb') as attachment:
-            self.__attach_from_mail_file(MailAttachment(filepath, attachment.read()))
+            self.__attach_from_mail_file(MailAttachment(filepath.name, attachment.read()))
 
     def attach_file(self, *args):
         if len(args) != 1:

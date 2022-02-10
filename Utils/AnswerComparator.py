@@ -1,11 +1,11 @@
 from .Utils import get_file_hash
 
-import os
+from pathlib import Path
 import subprocess
 
 
 class AnswerComparator:
-    def __init__(self, comparator_path='', arguments_format=''):
+    def __init__(self, comparator_path=Path().home(), arguments_format=''):
         """
         :param comparator_path: path to comparator executable. If path is empty, then
         result files are compared by MD5-hashsum
@@ -17,12 +17,13 @@ class AnswerComparator:
         self.comparatorPath = comparator_path
         self.argumentsFormat = arguments_format
 
-    def are_equal(self, file1, file2) -> bool:
-        assert os.path.exists(file1) and os.path.exists(file2)
+    def are_equal(self, file1: Path, file2: Path) -> (bool, str):
+        if not (file1.exists() and file2.exists()):
+            return False, f'one of the files `{file1}\' and `{file2}\' can not be found'
 
-        if len(self.comparatorPath) != 0:
+        if self.comparatorPath != Path().home():
             args = self.argumentsFormat.format(file1, file2).split(' ')
-            res = subprocess.run([self.comparatorPath, *args],
+            res = subprocess.run([str(self.comparatorPath), *args],
                                  stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
             return res.returncode == 0

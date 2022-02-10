@@ -3,6 +3,7 @@
   "admin_credentials": "CheckerData/.admin_credentials",
   "submits": "TestingArea/Submits",
   "labs": "TestingArea/Labs",
+  "checker_logs": "TestingArea/checker.log",
   "remove_executable_after_run": true,
   "remove_submit_after_run": false,
   "return_stderr_to_student": false,

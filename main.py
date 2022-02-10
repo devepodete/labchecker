@@ -1,148 +1,211 @@
-from PipelineBase import Gate, GateHolder, ExecutionPolicy
-from StudentInteraction.Communication import MailMessage, MailAttachment, AttachmentKind, MailSender, MailReceiver, \
-    authentication
-from StudentInteraction.ReportGeneration import ReportGenerator, ReportType
+import re
+import sys
+import subprocess
 
-from Pipeline import ExecutableBuilder, FileSizeLimiter, FileCleaner, ExecutableRunner
+from CheckerInteraction import Message, ListenerBase
 
-from Utils import AnswerComparator
-
-import os.path
-import dateutil.parser
-import json
+from typing import Tuple
 
 CONFIG_FILE_PATH = 'config.json'
-PATHS_GENERATED_PATH = 'CheckerData/paths_generated.json'
+PYTHON_EXE = sys.executable
 
-PUBLIC_KEYS_FOLDER = None
-ADMIN_CREDS_FILE = None
-TEST_FOLDER = None
-SUBMITS_FOLDER = None
-LABS_FOLDER = None
+# checker info
+VERSION = '0.0.1'
+AUTHOR = '@devepodete (Maksim Cheremisinov)'
+RELEASE_DATE = '09 Feb 2022'
+LICENSE = 'MIT'
 
-REMOVE_EXECUTABLE_AFTER_RUN = None
-RETURN_STDERR_TO_STUDENT = None
-RETURN_STDERR_TO_STUDENT_SIZE = None
+# checker state
+STARTED = False
+PID = None
+
+# checker communication
+PORT = 6000
+LISTENER = ListenerBase()
+
+COMMANDS = (
+    'fetch', 'check', 'skip', 'start', 'restart', 'exit', 'kill', 'set', 'mail', 'stat', 'help'
+)
+
+EMPTY_COMMAND_RE = re.compile(R'^\s*$')
+
+COMMANDS_RE = (
+    re.compile(R'^\s*(fetch)\s+(start|stop)?\s*$'),
+    re.compile(R'^\s*(check)\s+([\w\\/]+)\s+(--report)?\s*$'),
+    re.compile(R'^\s*(skip)\s*$'),
+
+    re.compile(R'^\s*(start)\s*$'),
+    re.compile(R'^\s*(restart)\s*$'),
+    re.compile(R'^\s*(restart)\s+(now)\s*$'),
+    re.compile(R'^\s*(exit)\s*$'),
+    re.compile(R'^\s*(kill)\s*$'),
+
+    re.compile(R'^\s*(set)\s+(config)\s+([\w\\/]+)\s*$'),
+    re.compile(R'^\s*(set)\s+(fetch)\s+(delay)\s+([0-9]+)\s*$'),
+
+    re.compile(R'^\s*(mail)\s+(all)\s+\"(.*)\"\s*$'),
+    re.compile(R'^\s*(mail)\s+(.*@.*)\s+\"(.*)\"\s*$'),
+
+    re.compile(R'^\s*(pid)\s*$'),
+    re.compile(R'^\s*(stat)\s*$'),
+    re.compile(R'^\s*(help)\s*$'),
+)
 
 
-def init_generated_paths():
-    global PUBLIC_KEYS_FOLDER, ADMIN_CREDS_FILE, TEST_FOLDER, SUBMITS_FOLDER, LABS_FOLDER
-
-    with open(PATHS_GENERATED_PATH, 'r') as config:
-        cfg = json.load(config)
-
-        PUBLIC_KEYS_FOLDER = cfg['public_keys']
-        ADMIN_CREDS_FILE = cfg['admin_credentials']
-        TEST_FOLDER = cfg['testing_area']
-        SUBMITS_FOLDER = cfg['submits']
-        LABS_FOLDER = cfg['labs']
+def print_welcome():
+    print(f'=== LAB CHECKER ===')
+    print(f'Made by {AUTHOR}')
+    print(f'Version {VERSION} from {RELEASE_DATE}')
+    print(f'License: {LICENSE}')
+    print(f'===================')
 
 
-def init_flags():
-    global REMOVE_EXECUTABLE_AFTER_RUN, RETURN_STDERR_TO_STUDENT, RETURN_STDERR_TO_STUDENT_SIZE
+def print_help():
+    print('Available checker commands:\n')
+    print('fetch - fetch new submits (by default checker wait some time between fetches)')
+    print('fetch start - start fetching new submits')
+    print('fetch stop - stop fetching new submits')
+    print('check path/to/submit - check target path/to/submit')
+    print('check path/to/submit --report - same as check, but send report also')
+    print('skip - skip all pending submits')
+    print()
+    print('start - start checker process')
+    print('restart - equivalent to exit + start')
+    print('restart now - equivalent to kill + start')
+    print('exit - wait until checker done and close checker process')
+    print('kill - force kill checker process')
+    print()
+    print('set config path/to/config - update checker configuration from path/to/config')
+    print('set fetch delay SECONDS - set new delay between fetching submits')
+    print()
+    print('mail all \"Message\" - send \"Message\" to all users')
+    print('mail user@gmail.com \"Message\" - send \"Message\" to user@gmail.com')
+    print()
+    print('pid - print checker PID')
+    print('stat - print checker statistics')
+    print('help - print available commands')
 
-    with open(CONFIG_FILE_PATH, 'r') as config:
-        cfg = json.load(config)
 
-        REMOVE_EXECUTABLE_AFTER_RUN = cfg['Flags']['remove_executable_after_run']['value']
-        RETURN_STDERR_TO_STUDENT = cfg['Flags']['return_stderr_to_student']['value']
-        RETURN_STDERR_TO_STUDENT_SIZE = cfg['Flags']['return_stderr_to_student']['size']['value']
+def command_ok(command: str) -> Message:
+    for command_re in COMMANDS_RE:
+        res = command_re.match(command)
+        if res:
+            return Message(False, '', res.groups())
 
-
-def good_subject(subject: str):
-    return subject in ('os:1', 'os:2', 'os:3', 'os:4')
+    return Message(True, 'unknown command')
 
 
-def work():
-    from time import sleep
-    login, password = authentication.get_credentials('CheckerData/.admin_credentials')
-    done = False
+def cmd_kill(pid) -> Message:
+    if type(pid) is not int:
+        return Message(True, f'Invalid {pid=}')
 
-    while not done:
-        messages_to_send = []
-        print('Sleeping 5 sec')
-        sleep(5)
-        with MailReceiver(login, password) as receiveServer:
-            new_messages = receiveServer.fetch()
-            print(f'got {len(new_messages)} new messages')
+    proc = subprocess.run(['kill', '-9', str(pid)], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.PIPE)
 
-            for idx, msg in enumerate(new_messages):
-                done = True
-                print(f'{idx}. {str(msg)}')
-                if len(msg.Attachments) != 0:
+    if proc.returncode != 0:
+        return Message(True, str(proc.stderr))
 
-                    user_folder = os.path.join(SUBMITS_FOLDER, msg.From)
-                    if not os.path.exists(user_folder):
-                        os.mkdir(user_folder)
+    return Message(False, '')
 
-                    if not good_subject(msg.Subject):
-                        messages_to_send.append(MailMessage(login, msg.From, 'Result', 'Bad subject'))
-                        continue
 
-                    lab_folder = os.path.join(user_folder, msg.Subject)
-                    if not os.path.exists(lab_folder):
-                        os.mkdir(lab_folder)
+def cmd_start() -> Message:
+    global STARTED, PID
 
-                    date = dateutil.parser.parse(msg.Date)
-                    submit_folder = os.path.join(lab_folder, f'{date.date()}+{date.time()}')
-                    if not os.path.exists(lab_folder):
-                        messages_to_send.append(MailMessage(login, msg.From, 'Result', 'Don not send too quickly!'))
-                        continue
+    if STARTED:
+        return Message(True, 'Checker already started')
+    proc = subprocess.Popen([PYTHON_EXE, 'checker.py', CONFIG_FILE_PATH, str(PORT)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
-                    os.mkdir(submit_folder)
+    checker_code = None
+    try:
+        checker_code = proc.wait(1)
+    except subprocess.TimeoutExpired:
+        pass
 
-                    src_path = os.path.join(submit_folder, 'main.cpp')
-                    exec_path = os.path.join(submit_folder, 'main.out')
+    if checker_code:
+        return Message(True, f'Failed to start checker. Exit code {checker_code}',
+                       [line.decode('utf-8').replace('\n', '') for line in proc.stderr])
+    PID = proc.pid
+    LISTENER.accept_connection()
+    return Message(False, '')
 
-                    msg.Attachments[0].save_to(src_path)
 
-                    # generate tests folder path
-                    lab_number = msg.Subject.split(':')[-1]
-                    student_var = 'var12'  # TODO
+def send_message_to_checker(message: Message, wait_reply: bool, timeout=1.0) -> Message:
+    LISTENER.send_message(message)
+    if not wait_reply:
+        return Message(False, '')
 
-                    lab_variant_path = os.path.join(LABS_FOLDER, lab_number)
-                    lab_variant_path = os.path.join(lab_variant_path, student_var)
+    return LISTENER.receive_message(timeout)
 
-                    gate0 = Gate('PreparationChecks',
-                                 [FileSizeLimiter(src_path, 10000)], ExecutionPolicy.RUN_ALWAYS)
-                    gate1 = Gate('Build',
-                                 [ExecutableBuilder('g++', ['-Wall', '-Werror'], src_path, exec_path)],
-                                 ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED)
-                    gate2 = Gate('Test',
-                                 [ExecutableRunner(exec_path,
-                                                   lab_variant_path,
-                                                   AnswerComparator('./TestingArea/AnswerComparators/ncmp.out',  # TODOs
-                                                                    '1 {0} {1}'),
-                                                   './TestingArea/.temp.txt')],
-                                 ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED)
-                    gate3 = Gate('Clean',
-                                 [FileCleaner([exec_path])], ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED)
 
-                    gh = GateHolder([gate0, gate1, gate2])
-                    gh.execute()
+def do_command_action(command: Tuple[str]) -> Message:
+    global STARTED, PID
 
-                    rg = ReportGenerator([gate1, gate2])
+    if not command or len(command) == 0:
+        return Message(True, 'No command provided')
 
-                    rg.generate_report(ReportType.Html)
-                    m = MailMessage(login, msg.From, 'Result')
-                    m.attach_file(MailAttachment('report', rg.report, AttachmentKind.Html))
-                    messages_to_send.append(m)
-                else:
-                    print('No attachments')
+    if command[0] == 'help':
+        print_help()
+    elif command[0] == 'pid':
+        print(f'{PID=}')
+    elif command[0] == 'kill':
+        return cmd_kill(PID)
+    elif command == ('restart', 'now'):
+        cmd_kill(PID)
+        return cmd_start()
+    elif command[0] == 'start':
+        return cmd_start()
+    elif command[0] == 'stat':
+        stat = send_message_to_checker(Message(False, 'stat', command), wait_reply=True)
+        print(stat.message)
+    elif command[0] == 'exit':
+        stat = send_message_to_checker(Message(False, 'exit'), wait_reply=True)
+        print(stat.message)
+    elif command[0] == 'skip':
+        stat = send_message_to_checker(Message(False, 'skip'), wait_reply=True)
+        print(stat.message)
+    else:
+        print('unsupported command')
 
-        with MailSender(login, password) as sendServer:
-            print('Sending replies... ', end='')
-            for idx, msg in enumerate(messages_to_send):
-                print(f'{idx}. {str(msg)}')
-                assert msg.From != msg.To
-                sendServer.send_message(msg)
-            print('Done')
+    return Message(False, '')
+
+
+def init_listener():
+    global LISTENER
+
+    LISTENER.bind_socket(('localhost', PORT))
+
+
+def process_input():
+    while True:
+        try:
+            command = input('> ')
+            if EMPTY_COMMAND_RE.match(command):
+                continue
+
+            command = command_ok(command)
+            if command.error_occurred:
+                print(f'Error: {command.message}')
+                continue
+
+            print(f'Parsed command: {command.args}')
+
+            result = do_command_action(command.args)
+            if result.error_occurred:
+                print(f'Error: {result.message}')
+                if result.args:
+                    for arg in result.args:
+                        print(arg)
+
+        except EOFError:
+            print()
 
 
 def main():
-    init_generated_paths()
-    init_flags()
-    work()
+    print_welcome()
+    print_help()
+    init_listener()
+    process_input()
 
 
 if __name__ == '__main__':

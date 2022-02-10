@@ -3,11 +3,11 @@ from pathlib import Path
 from getpass import getpass
 
 CONFIG_FILE_PATH = 'config.json'
-CREDENTIALS_FILE = ''
+CREDENTIALS_FILE = Path()
 
 
-def safe_mkdir(path: str):
-    Path(path).mkdir(parents=True, exist_ok=True)
+def safe_mkdir(path: Path):
+    path.mkdir(parents=True, exist_ok=True)
 
 
 def create_checker_folders():
@@ -16,17 +16,17 @@ def create_checker_folders():
 
     with open(CONFIG_FILE_PATH, 'r') as f:
         cfg = json.load(f)
-        safe_mkdir(cfg['public_keys'])
-        safe_mkdir(cfg['submits'])
-        safe_mkdir(cfg['labs'])
-        CREDENTIALS_FILE = cfg['admin_credentials']
+        safe_mkdir(Path(cfg['public_keys']))
+        safe_mkdir(Path(cfg['submits']))
+        safe_mkdir(Path(cfg['labs']))
+        CREDENTIALS_FILE = Path(cfg['admin_credentials'])
 
     print('OK')
 
 
 def create_credentials_file():
     print('Creating credentials file...')
-    Path(CREDENTIALS_FILE).touch(exist_ok=True)
+    CREDENTIALS_FILE.touch(exist_ok=True)
 
     ans = input('Would you like to enter your gmail credentials now? (y/n):')
     if ans == 'y':

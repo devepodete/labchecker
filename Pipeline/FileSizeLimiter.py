@@ -1,9 +1,11 @@
 from PipelineBase import IPipelineElement, Verdict
 from Utils import get_file_size
 
+from pathlib import Path
+
 
 class FileSizeLimiter(IPipelineElement):
-    def __init__(self, file: str, max_size_bytes: int):
+    def __init__(self, file: Path, max_size_bytes: int):
         super().__init__('FileSize')
         self.file = file
         self.maxSizeBytes = max_size_bytes

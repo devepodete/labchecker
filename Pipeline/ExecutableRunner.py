@@ -1,26 +1,26 @@
 from PipelineBase import IPipelineElement, Verdict
 from Utils import AnswerComparator
 
-import os
+from pathlib import Path
 import subprocess
 
 from subprocess import SubprocessError
 
 
 class ExecutableRunner(IPipelineElement):
-    def __init__(self, executable_path: str, lab_variant_path: str, comparator: AnswerComparator, temp_file: str):
+    def __init__(self, executable_path: Path, lab_variant_path: Path, comparator: AnswerComparator, temp_file: Path):
         super().__init__('Tests')
         self.executablePath = executable_path
         self.labVariantPath = lab_variant_path
-        self.testsPath = os.path.join(lab_variant_path, 'tests')
-        self.limitsFile = os.path.join(lab_variant_path, 'limits.txt')
+        self.testsPath = lab_variant_path / 'tests'
+        self.limitsFile = lab_variant_path / 'limits.txt'
         self.comparator = comparator
         self.tempFile = temp_file
 
     def execute(self) -> None:
-        if not os.path.exists(self.testsPath) or not os.path.exists(self.limitsFile):
+        if not self.testsPath.exists() or not self.limitsFile.exists():
             self.executionResult.verdict = Verdict.FAIL
-            self.executionResult.message = f'Can not find tests info in {self.labVariantPath}'
+            self.executionResult.message = f'Unable to find tests info in {self.labVariantPath}'
             return
 
         test_idx = 1
@@ -34,14 +34,14 @@ class ExecutableRunner(IPipelineElement):
             self.executionResult.message = f'Bad limits file file {self.limitsFile}'
             return
 
-        memory_limit = int(lines[0].split('=')[-1])
+        # memory_limit = int(lines[0].split('=')[-1]) TODO
         time_limit = int(lines[1].split('=')[-1])
 
         while True:
-            test_input = os.path.join(self.testsPath, f'in{str(test_idx)}.txt')
-            test_output = os.path.join(self.testsPath, f'out{str(test_idx)}.txt')
+            test_input = self.testsPath / f'in{str(test_idx)}.txt'
+            test_output = self.testsPath / f'out{str(test_idx)}.txt'
 
-            if not os.path.exists(test_input) or not os.path.exists(test_output):
+            if not (test_input.exists() and test_output.exists()):
                 break
 
             try:

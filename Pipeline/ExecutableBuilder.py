@@ -1,11 +1,12 @@
 from PipelineBase import IPipelineElement, Verdict
 
 import subprocess
+from pathlib import Path
 from typing import List
 
 
 class ExecutableBuilder(IPipelineElement):
-    def __init__(self, compiler: str, compiler_flags: List[str], source_file: str, output_file: str):
+    def __init__(self, compiler: str, compiler_flags: List[str], source_file: Path, output_file: Path):
         super().__init__('Build')
         self.compiler = compiler
         self.compilerFlags = compiler_flags
@@ -13,7 +14,7 @@ class ExecutableBuilder(IPipelineElement):
         self.outputFile = output_file
 
     def execute(self) -> None:
-        res = subprocess.run([self.compiler, *self.compilerFlags, self.sourceFile, '-o', self.outputFile],
+        res = subprocess.run([self.compiler, *self.compilerFlags, str(self.sourceFile), '-o', str(self.outputFile)],
                              stdout=subprocess.DEVNULL,
                              stderr=subprocess.PIPE)
 
