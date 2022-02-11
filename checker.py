@@ -149,8 +149,8 @@ def work():
                     messages_to_send.append(MailMessage(LOGIN, msg.From, 'Error', 'Bad attachments'))
                     continue
 
-                if not msg.Attachments[1].name.endswith('.asc'):
-                    LOGGER.log(f'bad signature extension: `{msg.Attachments[1].name}\'')
+                if not msg.Attachments[0].name.endswith('.asc') or msg.Attachments[1].name.endswith('.asc'):
+                    LOGGER.log(f'no file with extension \'.asc\' found')
                     messages_to_send.append(MailMessage(LOGIN, msg.From, 'Error', 'Bad signature extension'))
                     continue
 
@@ -176,8 +176,11 @@ def work():
                 sign_path = submit_folder / 'main.cpp.asc'
                 exec_path = submit_folder / 'main.out'
 
-                msg.Attachments[0].save_to(src_path)
-                msg.Attachments[1].save_to(sign_path)
+                sign_attachment_idx = 0 if msg.Attachments[0].name.endswith('.asc') else 1
+                src_attachment_idx = 0 if sign_attachment_idx == 1 else 1
+
+                msg.Attachments[src_attachment_idx].save_to(src_path)
+                msg.Attachments[sign_attachment_idx].save_to(sign_path)
                 LOGGER.log(f'attachments saved to {src_path}')
 
                 if not Utils.signature_ok(src_path, sign_path, key_file):
