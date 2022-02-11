@@ -75,6 +75,6 @@ class ReportGenerator:
 
         report += "</table>"
         if len(message) != 0:
-            report += f'Message (first 1000 chars): {message}'
+            report += f'Message (first 1000 chars): {message[:1000]}'
 
         self.report = report
