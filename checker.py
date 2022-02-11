@@ -181,7 +181,7 @@ def work():
 
                 msg.Attachments[src_attachment_idx].save_to(src_path)
                 msg.Attachments[sign_attachment_idx].save_to(sign_path)
-                LOGGER.log(f'attachments saved to {src_path}')
+                LOGGER.log(f'attachments saved to submit_folder')
 
                 signature_check = Utils.signature_ok(src_path, sign_path, key_file)
                 if not signature_check[0]:
