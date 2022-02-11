@@ -149,7 +149,7 @@ def work():
                     messages_to_send.append(MailMessage(LOGIN, msg.From, 'Error', 'Bad attachments'))
                     continue
 
-                if not msg.Attachments[0].name.endswith('.asc') or msg.Attachments[1].name.endswith('.asc'):
+                if not (msg.Attachments[0].name.endswith('.asc') or msg.Attachments[1].name.endswith('.asc')):
                     LOGGER.log(f'no file with extension \'.asc\' found')
                     messages_to_send.append(MailMessage(LOGIN, msg.From, 'Error', 'Bad signature extension'))
                     continue
@@ -183,9 +183,11 @@ def work():
                 msg.Attachments[sign_attachment_idx].save_to(sign_path)
                 LOGGER.log(f'attachments saved to {src_path}')
 
-                if not Utils.signature_ok(src_path, sign_path, key_file):
-                    LOGGER.log('bad signature')
-                    messages_to_send.append(MailMessage(LOGIN, msg.From, 'Error', 'Bad signature'))
+                signature_check = Utils.signature_ok(src_path, sign_path, key_file)
+                if not signature_check[0]:
+                    LOGGER.log(f'bad signature: {signature_check[1]}')
+                    messages_to_send.append(
+                        MailMessage(LOGIN, msg.From, 'Error', f'Bad signature: {signature_check[1]}'))
                     continue
 
                 LOGGER.log('signature ok')
