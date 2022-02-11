@@ -152,7 +152,10 @@ def send_message_to_checker(message: Message) -> None:
 
 
 def receive_message_from_checker(timeout=-1.0) -> Message:
-    return LISTENER.receive_message(timeout)
+    msg = LISTENER.receive_message(timeout)
+    if msg.error_occurred:
+        msg.message = 'no news'
+    return msg
 
 
 def do_command_action(command: Tuple[str]) -> Message:
