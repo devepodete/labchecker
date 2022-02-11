@@ -16,7 +16,7 @@ import sys
 
 from pathlib import Path
 from time import sleep
-from typing import List
+from typing import List, Optional
 
 # checker communication
 PORT = -1
@@ -58,29 +58,59 @@ VERDICTS_OK = 0
 VERDICTS_RE = 0
 VERDICTS_TL = 0
 VERDICTS_ML = 0
+VERDICTS_FAIL = 0
 
 
-class Action:
-    CHECK = 'CHECK'
-    SKIP = 'SKIP'
-    STAT = 'STAT'
-    SET = 'SET'
-    MAIL = 'MAIL'
-    EXIT = 'EXIT'
-    NONE = 'NONE'
+def make_statistics() -> Message:
+    res = Message('Statistics')
+    res.args = [
+        f'=================',
+        f'Metainfo:',
+        f'=================',
+        f'{PORT=}',
+        f'{str(LOG_FILE)=}',
+        f'{FETCH_DELAY_SECONDS=}',
+        f'=================',
+        f'Labs statistics:',
+        f'=================',
+        f'{TOTAL_STUDENTS=}',
+        f'{TOTAL_SUBMITS=}',
+        f'{BAD_SUBMITS=}',
+        f'{VERDICTS_OK=}',
+        f'{VERDICTS_RE=}',
+        f'{VERDICTS_TL=}',
+        f'{VERDICTS_ML=}',
+        f'{VERDICTS_FAIL=}\n',
+    ]
+    return res
 
 
-def get_action_from_host() -> (int, Message):
+def get_message_from_host() -> Optional[Message]:
     if not CLIENT.has_new_message():
-        return Action.NONE, None
+        return None
 
-    message = CLIENT.receive_message()
-    if message.message == 'check':
-        return Action.CHECK, message
-    elif message.message == 'exit':
-        return Action.EXIT, message
+    return CLIENT.receive_message()
 
-    return Action.NONE, None
+
+def send_message_to_host(message: Message):
+    CLIENT.send_message(message)
+
+
+def do_action_with_command(message: Message):
+    if message.message == 'stat':
+        send_message_to_host(make_statistics())
+    elif message.message == 'check':
+        pass
+    elif message.message == 'fetch':
+        pass
+    elif message.message == 'skip':
+        pass
+    elif message.message == 'set':
+        pass
+    elif message.message == 'mail':
+        pass
+    else:
+        send_message_to_host(Message(f'Unknown command `{message.message}\'', True, message.args))
 
 
 def work():
@@ -90,19 +120,15 @@ def work():
     done = False
 
     while not done:
-        action, message = get_action_from_host()
+        message = get_message_from_host()
 
-        if action != Action.NONE:
-            LOGGER.log(f'received action `{action}\' from host')
-
-        if action == Action.EXIT:
-            break
-        elif action == Action.MAIL:
-            pass
-        elif action == Action.STAT:
-            pass
-        elif action == Action.SKIP:
-            pass
+        if message is not None:
+            LOGGER.log(f'received message `{message.message}\' from host')
+            if message.message == 'exit':
+                send_message_to_host(Message('exited'))
+                break
+            else:
+                do_action_with_command(message)
 
         messages_to_send = []
         sleep(FETCH_DELAY_SECONDS)
@@ -256,7 +282,7 @@ def read_config(file: str):
 
 
 def cmd_update_config(new_config_path: str) -> Message:
-    result = Message(False, '')
+    result = Message('')
     try:
         read_config(new_config_path)
     except OSError as e:
@@ -294,7 +320,7 @@ def init_checker(argv: List[str]) -> Message:
     global PORT
 
     if len(argv) not in (3, 4):
-        return Message(True, f'Wrong arguments. Usage: python {argv[0]} CONFIG_FILE PORT')
+        return Message(f'Wrong arguments. Usage: python {argv[0]} CONFIG_FILE PORT', True)
 
     PORT = int(argv[2])
 
@@ -305,7 +331,7 @@ def init_checker(argv: List[str]) -> Message:
     init_logger()
     init_mail_credentials()
 
-    return Message(False, '')
+    return Message('')
 
 
 def main():

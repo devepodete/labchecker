@@ -16,7 +16,7 @@ class ConnectionHolder:
         return self.conn.poll()
 
     def receive_message(self, timeout=0.0) -> Message:
-        if not self.conn.poll(timeout):
+        if timeout >= 0.0 and not self.conn.poll(timeout):
             return Message(True, f'receive timeout ({timeout})s expired')
         return self.conn.recv()
 

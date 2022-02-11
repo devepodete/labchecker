@@ -40,6 +40,7 @@ COMMANDS_RE = (
     re.compile(R'^\s*(exit)\s*$'),
     re.compile(R'^\s*(kill)\s*$'),
 
+    re.compile(R'^\s*(get)\s+(news)\s*$'),
     re.compile(R'^\s*(set)\s+(config)\s+([\w\\/]+)\s*$'),
     re.compile(R'^\s*(set)\s+(fetch)\s+(delay)\s+([0-9]+)\s*$'),
 
@@ -75,6 +76,7 @@ def print_help():
     print('exit - wait until checker done and close checker process')
     print('kill - force kill checker process')
     print()
+    print('get news - get messages from checker')
     print('set config path/to/config - update checker configuration from path/to/config')
     print('set fetch delay SECONDS - set new delay between fetching submits')
     print()
@@ -90,29 +92,31 @@ def command_ok(command: str) -> Message:
     for command_re in COMMANDS_RE:
         res = command_re.match(command)
         if res:
-            return Message(False, '', res.groups())
+            return Message('', False, res.groups())
 
-    return Message(True, 'unknown command')
+    return Message('unknown command', True)
 
 
 def cmd_kill(pid) -> Message:
+    global STARTED
     if type(pid) is not int:
-        return Message(True, f'Invalid {pid=}')
+        return Message(f'Invalid {pid=}', True)
 
+    STARTED = False
     proc = subprocess.run(['kill', '-9', str(pid)], stdout=subprocess.DEVNULL,
                           stderr=subprocess.PIPE)
 
     if proc.returncode != 0:
-        return Message(True, str(proc.stderr))
+        return Message(str(proc.stderr), True)
 
-    return Message(False, '')
+    return Message('')
 
 
 def cmd_start() -> Message:
     global STARTED, PID
 
     if STARTED:
-        return Message(True, 'Checker already started')
+        return Message('Checker already started', True)
     proc = subprocess.Popen([PYTHON_EXE, 'checker.py', CONFIG_FILE_PATH, str(PORT)],
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
@@ -123,18 +127,31 @@ def cmd_start() -> Message:
         pass
 
     if checker_code:
-        return Message(True, f'Failed to start checker. Exit code {checker_code}',
+        return Message(f'Failed to start checker. Exit code {checker_code}', True,
                        [line.decode('utf-8').replace('\n', '') for line in proc.stderr])
     PID = proc.pid
     LISTENER.accept_connection()
-    return Message(False, '')
+    STARTED = True
+    return Message('')
 
 
-def send_message_to_checker(message: Message, wait_reply: bool, timeout=1.0) -> Message:
+def cmd_exit() -> Message:
+    global STARTED
+    if not STARTED:
+        return Message('')
+
+    send_message_to_checker(Message('exit'))
+    msg = receive_message_from_checker(timeout=5.0)
+    if not msg.error_occurred:
+        STARTED = False
+    return msg
+
+
+def send_message_to_checker(message: Message) -> None:
     LISTENER.send_message(message)
-    if not wait_reply:
-        return Message(False, '')
 
+
+def receive_message_from_checker(timeout=-1.0) -> Message:
     return LISTENER.receive_message(timeout)
 
 
@@ -142,7 +159,7 @@ def do_command_action(command: Tuple[str]) -> Message:
     global STARTED, PID
 
     if not command or len(command) == 0:
-        return Message(True, 'No command provided')
+        return Message('No command provided', True)
 
     if command[0] == 'help':
         print_help()
@@ -150,24 +167,36 @@ def do_command_action(command: Tuple[str]) -> Message:
         print(f'{PID=}')
     elif command[0] == 'kill':
         return cmd_kill(PID)
+    elif command[0] == 'exit':
+        return cmd_exit()
+    elif command == 'restart':
+        msg = cmd_exit()
+        if msg.error_occurred:
+            return msg
+        return cmd_start()
     elif command == ('restart', 'now'):
         cmd_kill(PID)
         return cmd_start()
     elif command[0] == 'start':
-        return cmd_start()
-    elif command[0] == 'stat':
-        stat = send_message_to_checker(Message(False, 'stat', command), wait_reply=True)
-        print(stat.message)
-    elif command[0] == 'exit':
-        stat = send_message_to_checker(Message(False, 'exit'), wait_reply=True)
-        print(stat.message)
-    elif command[0] == 'skip':
-        stat = send_message_to_checker(Message(False, 'skip'), wait_reply=True)
-        print(stat.message)
+        msg = cmd_start()
+        if not msg.error_occurred:
+            print(f'{PID=}')
+        return msg
+    elif command == ('get', 'news'):
+        msg = receive_message_from_checker(0.0)
+        if not msg.error_occurred:
+            print(msg.message)
+            if msg.args:
+                for arg in msg.args:
+                    print(arg)
+        return msg
     else:
-        print('unsupported command')
+        print('command is:', command)
+        if not STARTED:
+            return Message('start checker first', True)
+        send_message_to_checker(Message(command[0], False, command))
 
-    return Message(False, '')
+    return Message('')
 
 
 def init_listener():
