@@ -227,7 +227,8 @@ def work():
                 gate0 = Gate('PreparationChecks',
                              [FileSizeLimiter(src_path, 10000)], ExecutionPolicy.RUN_ALWAYS)
                 gate1 = Gate('Build',
-                             [ExecutableBuilder('g++', ['-Wall', '-Werror'], src_path, exec_path)],
+                             [ExecutableBuilder('g++', ['-Wall', '-Werror', '-fsanitize=address'], src_path,
+                                                exec_path)],
                              ExecutionPolicy.RUN_IF_PREVIOUS_SUCCEED)
                 gate2 = Gate('Test',
                              [ExecutableRunner(exec_path,
