@@ -15,6 +15,7 @@ import json
 import sys
 
 from pathlib import Path
+from smtplib import SMTPException
 from time import sleep
 from typing import List, Optional
 
@@ -49,6 +50,8 @@ GOOD_SUBJECTS = (
     'os:1', 'os:2', 'os:3',
     'os:test'
 )
+
+BLACKLIST_MAIL = {'welcome@e.mail', 'security@id.mail'}
 
 # statistics
 TOTAL_STUDENTS = 0
@@ -138,8 +141,11 @@ def work():
 
             if len(new_messages) != 0:
                 LOGGER.log(f'got {len(new_messages)} new submits')
-
+            else:
+                LOGGER.log("No new messages")
+                
             for msg in new_messages:
+                LOGGER.log(str(msg))
                 TOTAL_SUBMITS += 1
                 LOGGER.log(f'start submit check from `{msg.From}\'')
 
@@ -253,10 +259,18 @@ def work():
                 messages_to_send.append(m)
 
         with MailSender(LOGIN, PASSWORD) as sendServer:
+            LOGGER.log("starting to send messages...")
             for msg in messages_to_send:
-                if msg.To == LOGIN:
+                if msg.To == LOGIN or msg.To in BLACKLIST_MAIL:
                     continue
-                sendServer.send_message(msg)
+
+                try:
+                    sendServer.send_message(msg)
+                except SMTPException as exception:
+                    LOGGER.log(f"Got {type(exception)} exception on attempt to "
+                               f"send response message to {msg.To}: `{exception}\'")
+
+            LOGGER.log("all messages sent")
 
     LOGGER.log('end work')
 
