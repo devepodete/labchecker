@@ -3,6 +3,7 @@ import sys
 import subprocess
 
 from CheckerInteraction import Message, ListenerBase
+from Utils import process_exist
 
 from typing import Tuple
 
@@ -17,7 +18,7 @@ LICENSE = 'MIT'
 
 # checker state
 STARTED = False
-PID = None
+PID: int = -1
 
 # checker communication
 PORT = 6000
@@ -115,7 +116,7 @@ def cmd_kill(pid) -> Message:
 def cmd_start() -> Message:
     global STARTED, PID
 
-    if STARTED:
+    if process_exist(PID) or STARTED:
         return Message('Checker already started', True)
     proc = subprocess.Popen([PYTHON_EXE, 'checker.py', CONFIG_FILE_PATH, str(PORT)],
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -136,8 +137,8 @@ def cmd_start() -> Message:
 
 
 def cmd_exit() -> Message:
-    global STARTED
-    if not STARTED:
+    global STARTED, PID
+    if not STARTED or not process_exist(PID):
         return Message('')
 
     send_message_to_checker(Message('exit'))
