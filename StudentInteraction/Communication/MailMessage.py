@@ -74,10 +74,10 @@ class MailMessage:
         if len(args) != 1:
             raise RuntimeError(f'Invalid number of arguments in attach_file(): {len(args)}')
 
-        if type(args[0]) is str:
-            return self.__attach_from_disk(args[0])
         if type(args[0]) is MailAttachment:
             return self.__attach_from_mail_file(args[0])
+        
+        return self.__attach_from_disk(args[0])
 
         raise RuntimeError(f'Unexpected argument type in attach_file(): {type(args[0])}')
 
