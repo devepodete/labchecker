@@ -1,6 +1,7 @@
 import hashlib
 import re
 import subprocess
+import os
 
 from pathlib import Path
 from typing import List
@@ -21,6 +22,15 @@ def get_file_hash(file: Path) -> bytes:
             result.update(chunk)
 
     return result.digest()
+
+
+def process_exist(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    else:
+        return True
 
 
 SIGN_FINGERPRINT_REGEXP = re.compile('.*using RSA key ([0-9A-Z]+).*')
