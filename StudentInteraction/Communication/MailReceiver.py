@@ -19,14 +19,15 @@ def decode_if_needed(data, encoding=None) -> str:
 
 
 class MailReceiver:
-    def __init__(self, login, password, pop_server='pop.gmail.com'):
+    def __init__(self, login, password, pop_server='pop.mail.ru', port=995):
         self.login = login
         self.password = password
         self.popServer = pop_server
+        self.port = port
         self.server = None
 
     def __enter__(self):
-        self.server = poplib.POP3_SSL(self.popServer)
+        self.server = poplib.POP3_SSL(self.popServer, port=self.port)
         self.server.user(self.login)
         self.server.pass_(self.password)
         return self

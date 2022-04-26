@@ -5,7 +5,7 @@ from smtplib import SMTP_SSL as SMTP
 
 
 class MailSender:
-    def __init__(self, login: str, password: str, smtp_server='smtp.gmail.com', port=465):
+    def __init__(self, login: str, password: str, smtp_server='smtp.mail.ru', port=465):
         self.context = ssl.create_default_context()
         self.login = login
         self.password = password
