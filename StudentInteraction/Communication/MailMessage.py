@@ -76,10 +76,8 @@ class MailMessage:
 
         if type(args[0]) is MailAttachment:
             return self.__attach_from_mail_file(args[0])
-        
-        return self.__attach_from_disk(args[0])
 
-        raise RuntimeError(f'Unexpected argument type in attach_file(): {type(args[0])}')
+        return self.__attach_from_disk(args[0])
 
     def __str__(self):
         s = f"""\
